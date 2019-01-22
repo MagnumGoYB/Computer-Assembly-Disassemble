@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #full-screen {
+            width: 100%;
+            height: 100vh;
+            min-width: 640px;
+            min-height: 360px;
+            position: relative;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background-color: #ffffff;
+        }
+
+        #feedback {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            display: block;
+            color: darkorange;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="full-screen">
+        <canvas id="canvas"></canvas>
+    </div>
+    <div id="feedback"></div>
+
+    <script src="js/three.min.js"></script>
+    <script src="js/TrackballControls.js"></script>
+    <script src="js/DragControls.js"></script>
+    <script src="js/LoaderSupport.js"></script>
+    <script src="js/OBJLoader2.js"></script>
+    <script src="js/MTLLoader.js"></script>
+    <script src="js/stats.min.js"></script>
+
+    <script>
+        var Boot = function (elementToBindTo) {
+            this.renderer = null;
+            this.canvas = elementToBindTo;
+            this.aspectRatio = 1;
+            this.recalcAspectRatio();
+            this.scene = null;
+            this.cameraDefaults = {
+                posCamera: new THREE.Vector3(0, 75, 150),
+                posCameraTarget: new THREE.Vector3(0, 0, 0),
+                near: 0.1,
+                far: 10000,
+                fov: 45
+            };
+            this.camera = null;
+            this.cameraTarget = this.cameraDefaults.posCameraTarget;
+            this.controls = null;
+
+            this.workerDirector = new THREE.LoaderSupport.WorkerDirector(THREE.OBJLoader2);
+            this.logging = {
+                enabled: false,
+                debug: false
+            };
+            this.workerDirector.setLogging(this.logging.enabled, this.logging.debug);
+            this.workerDirector.setCrossOrigin('anonymous');
+            this.workerDirector.setForceWorkerDataCopy(true);
+
+            this.allAssets = [];
+            this.feedbackArray = null;
+            this.running = false;
+
+            this.queueItems = [{
+                    name: 'Motherboard',
+                    visible: true,
+                    path: 'models/obj/Motherboard/',
+                    position: [0, 4, 0],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'CPU',
+                    path: 'models/obj/CPU/',
+                    scale: 1.7,
+                    position: [12.4, 1, -6],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'CPU-Cooler',
+                    path: 'models/obj/CPU-Cooler/',
+                    position: [12.4, 8.5, -5],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'RAM',
+                    path: 'models/obj/RAM/',
+                    scale: 1.88,
+                    position: [9.6, 4.5, 21],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'Chassis',
+                    path: 'models/obj/Chassis/',
+                    position: [16, 74.5, 43.5],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'GPU',
+                    path: 'models/obj/GPU/',
+                    scale: 1.88,
+                    position: [-18, 15, -20],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'Disk',
+                    path: 'models/obj/Disk/',
+                    scale: 1.88,
+                    position: [-27.3, 15, 32.5],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'CD-ROM',
+                    path: 'models/obj/CD-ROM/',
+                    scale: 1.81,
+                    position: [30.3, 17, 27.7],
+                    rotation: [0, 0.01, -1.57]
+                },
+                {
+                    name: 'Power',
+                    path: 'models/obj/Power/',
+                    scale: 1.8,
+                    position: [23.5, 227, 14],
+                    rotation: [0, 0, -1.57]
+                },
+                {
+                    name: 'Board',
+                    path: 'models/obj/Board/',
+                    scale: 1.805,
+                    position: [16.2, -125, 44],
+                    rotation: [0, 0, -1.57]
+                }
+            ];
+            this.workerCount = 3;
+            this.streamMeshes = true;
+        };
+        Boot.prototype = {
+            constructor: Boot,
+            initGL: function () {
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: this.canvas,
+                    antialias: true,
+                    autoClear: true
+                });
+                this.renderer.setClearColor(0xFFFFFF);
+                this.renderer.shadowMap.enabled = true
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x333333);
+
+                this.camera = new THREE.PerspectiveCamera(this.cameraDefaults.fov, this.aspectRatio, this.cameraDefaults
+                    .near, this.cameraDefaults.far);
+                this.resetCamera();
+                this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
+
+                var ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
+                var directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
+                directionalLight.position.set(-100, 100, -100);
+                directionalLight.castShadow = true;
+                var directional2Light = new THREE.DirectionalLight(0xFFFFFF, 1);
+                directional2Light.position.set(-100, 0, 100);
+                directional2Light.castShadow = true;
+                var directional3Light = new THREE.DirectionalLight(0xFFFFFF, 1);
+                directional3Light.position.set(100, -100, 0);
+                directional3Light.castShadow = true;
+
+                this.scene.add(ambientLight);
+                this.scene.add(directionalLight);
+                this.scene.add(directional2Light);
+                this.scene.add(directional3Light);
+
+                var grid = new THREE.GridHelper(1000, 100, 0x404040, 0x404040);
+                grid.material.opacity = 0.05;
+                grid.material.transparent = true;
+                // this.scene.add(grid);
+
+                var axes = new THREE.AxisHelper(1000);
+                this.scene.add(axes);
+
+                this.pivot = new THREE.Object3D();
+                this.pivot.name = 'Pivot';
+                this.scene.add(this.pivot);
+
+                this.enqueueAllAssests(this.queueItems, this.workerCount, this.streamMeshes);
+            },
+            enqueueAllAssests: function (items, maxWebWorkers, streamMeshes) {
+                if (this.running) {
+                    return;
+                } else {
+                    this.running = true;
+                }
+                var scope = this;
+                scope.workerDirector.objectsCompleted = 0;
+                scope.feedbackArray = [];
+                scope.reportDonwload = [];
+                var i;
+                var maxQueueSize = items.length;
+                for (i = 0; i < maxWebWorkers; i++) {
+                    scope.feedbackArray[i] = 'Worker #' + i + ': Awaiting feedback';
+                    scope.reportDonwload[i] = true;
+                }
+                scope._reportProgress(scope.feedbackArray.join('\<br\>'));
+
+                var callbackOnLoad = function (event) {
+                    var instanceNo = event.detail.instanceNo;
+                    scope.reportDonwload[instanceNo] = false;
+                    scope.allAssets.push(event.detail.loaderRootNode);
+
+                    var msg = 'Worker #' + instanceNo + ': Completed loading: ' + event.detail.modelName +
+                        ' (#' + scope.workerDirector.objectsCompleted + ')';
+                    if (scope.logging.enabled) console.info(msg);
+                    scope.feedbackArray[instanceNo] = msg;
+                    scope._reportProgress(scope.feedbackArray.join('\<br\>'));
+
+                    if (scope.workerDirector.objectsCompleted + 1 === maxQueueSize) {
+                        scope.running = false;
+                        console.log('所有对象加载完成！');
+                        console.log(scope.scene.children);
+                    }
+                };
+
+                var callbackReportProgress = function (event) {
+                    var instanceNo = event.detail.instanceNo;
+                    var text = event.detail.text;
+
+                    if (scope.reportDonwload[instanceNo]) {
+                        var msg = 'Worker #' + instanceNo + ': ' + text;
+                        if (scope.logging.enabled) console.info(msg);
+
+                        scope.feedbackArray[instanceNo] = msg;
+                        scope._reportProgress(scope.feedbackArray.join('\<br\>'));
+                    }
+                };
+
+                var callbackReportError = function (supportDesc, errorMessage) {
+                    console.error('LoaderWorkerDirector reported an error: ');
+                    console.error(errorMessage);
+                    return true;
+                };
+
+                var callbackMeshAlter = function (event, override) {
+                    if (!THREE.LoaderSupport.Validator.isValid(override)) override = new THREE.LoaderSupport
+                        .LoadedMeshUserOverride(false, false);
+
+                    var material = event.detail.material;
+                    var meshName = event.detail.meshName;
+                    if (THREE.LoaderSupport.Validator.isValid(material) && material.name ===
+                        'defaultMaterial' || meshName === 'Mesh_Mesh_head_geo.001_lambert2SG.001') {
+                        var materialOverride = material;
+                        materialOverride.color = new THREE.Color(Math.random(), Math.random(), Math.random());
+                        var mesh = new THREE.Mesh(event.detail.bufferGeometry, material);
+                        mesh.name = meshName;
+                        override.addMesh(mesh);
+                        override.alteredMesh = true;
+                    }
+                    return override;
+                };
+
+                var callbackOnLoadMaterials = function (materials) {
+                    console.log('Materials loaded');
+                    return materials;
+                };
+
+                var callbacks = new THREE.LoaderSupport.Callbacks();
+                callbacks.setCallbackOnProgress(callbackReportProgress);
+                callbacks.setCallbackOnReportError(callbackReportError);
+                callbacks.setCallbackOnLoad(callbackOnLoad);
+                callbacks.setCallbackOnMeshAlter(callbackMeshAlter);
+                callbacks.setCallbackOnLoadMaterials(callbackOnLoadMaterials);
+
+                this.workerDirector.prepareWorkers(callbacks, maxQueueSize, maxWebWorkers);
+                if (this.logging.enabled) console.info('Configuring WWManager with queue size ' + this.workerDirector
+                    .getMaxQueueSize() + ' and ' + this.workerDirector.getMaxWebWorkers() + ' workers.');
+
+                var prepData;
+                var modelPrepDatas = [];
+                for (i = 0; i < maxQueueSize; i++) {
+                    prepData = new THREE.LoaderSupport.PrepData(items[i].name);
+                    prepData.addResource(new THREE.LoaderSupport.ResourceDescriptor(items[i].path + items[i].name +
+                        '.obj', 'OBJ'));
+                    prepData.addResource(new THREE.LoaderSupport.ResourceDescriptor(items[i].path + items[i].name +
+                        '.mtl', 'MTL'));
+                    prepData.setLogging(false, false);
+                    prepData.scale = items[i].scale || 1.8;
+                    prepData.position = items[i].position || [0, 0, 0];
+                    prepData.rotation = items[i].rotation || [0, 0, 0];
+                    prepData.name = items[i].name || "";
+                    modelPrepDatas.push(prepData);
+                }
+
+                var pivot;
+                var modelPrepData;
+                var scale;
+                var position;
+                var rotation;
+                for (i = 0; i < maxQueueSize; i++) {
+                    modelPrepData = modelPrepDatas[i];
+                    modelPrepData.useAsync = true;
+                    scale = THREE.LoaderSupport.Validator.verifyInput(modelPrepData.scale, 0);
+                    position = THREE.LoaderSupport.Validator.verifyInput(modelPrepData.position, [0, 0, 0]);
+                    rotation = THREE.LoaderSupport.Validator.verifyInput(modelPrepData.rotation, [0, 0, 0]);
+                    modelPrepData = modelPrepData.clone();
+
+                    pivot = new THREE.Object3D();
+                    pivot.name = modelPrepData.name;
+                    pivot.visible = modelPrepData.visible;
+                    if (scale > 0) pivot.scale.set(scale, scale, scale);
+                    pivot.position.set(position[0], position[1], position[2]);
+                    pivot.rotation.set(rotation[0], rotation[1], rotation[2]);
+                    pivot.castShadow = true;
+                    pivot.receiveShadow = true;
+                    this.scene.add(pivot);
+                    modelPrepData.streamMeshesTo = pivot;
+
+                    this.workerDirector.enqueueForRun(modelPrepData);
+                }
+                this.workerDirector.processQueue();
+            },
+            recalcAspectRatio: function () {
+                this.aspectRatio = (this.canvas.offsetHeight === 0) ? 1 : this.canvas.offsetWidth / this.canvas
+                    .offsetHeight;
+            },
+            resizeDisplayGL: function () {
+                this.controls.handleResize();
+                this.recalcAspectRatio();
+                this.renderer.setSize(this.canvas.offsetWidth, this.canvas.offsetHeight, false);
+                this.updateCamera();
+            },
+            _reportProgress: function (content) {
+                var output = content;
+                if (THREE.LoaderSupport.Validator.isValid(content) && THREE.LoaderSupport.Validator.isValid(
+                        content.detail)) output = content.detail.text;
+
+                output = THREE.LoaderSupport.Validator.verifyInput(output, '');
+                if (this.logging.enabled) console.info('Progress:\n\t' + output.replace(/\<br\>/g, '\n\t'));
+                document.getElementById('feedback').innerHTML = output;
+            },
+            resetCamera: function () {
+                this.camera.position.copy(this.cameraDefaults.posCamera);
+                this.cameraTarget.copy(this.cameraDefaults.posCameraTarget);
+                this.updateCamera();
+            },
+            updateCamera: function () {
+                this.camera.aspect = this.aspectRatio;
+                this.camera.lookAt(this.cameraTarget);
+                this.camera.updateProjectionMatrix();
+            },
+            render: function () {
+                if (!this.renderer.autoClear) this.renderer.clear();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        };
+        var app = new Boot(document.getElementById('canvas'));
+        var resizeWindow = function () {
+            app.resizeDisplayGL();
+        };
+        var render = function () {
+            requestAnimationFrame(render);
+            app.render();
+        };
+        window.addEventListener('resize', resizeWindow, false);
+        console.log('开始初始化阶段...');
+        app.initGL();
+        app.resizeDisplayGL();
+        render();
+    </script>
+</body>
+
+</html>
