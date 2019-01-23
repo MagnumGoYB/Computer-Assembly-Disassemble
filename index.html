@@ -58,15 +58,19 @@
     <script src="js/MTLLoader.js"></script>
     <script src="js/stats.min.js"></script>
 
+    <script src="js/tween.js"></script>
+    <script src="js/animation.js"></script>
+
     <script>
         var Boot = function (elementToBindTo) {
+            this.raycaster = null;
             this.renderer = null;
             this.canvas = elementToBindTo;
             this.aspectRatio = 1;
             this.recalcAspectRatio();
             this.scene = null;
             this.cameraDefaults = {
-                posCamera: new THREE.Vector3(0, 75, 150),
+                posCamera: new THREE.Vector3(150, 120, 200),
                 posCameraTarget: new THREE.Vector3(0, 0, 0),
                 near: 0.1,
                 far: 10000,
@@ -88,6 +92,9 @@
             this.allAssets = [];
             this.feedbackArray = null;
             this.running = false;
+
+            this.mouse = new THREE.Vector2();
+            this.INTERSECTED = null;
 
             this.queueItems = [{
                     name: 'Motherboard',
@@ -160,10 +167,67 @@
             ];
             this.workerCount = 3;
             this.streamMeshes = true;
+
+            this.mul = 2;
+            this.currentStep = 1;
+            this.steps = ['', 'CPU', 'CPU-Cooler', 'RAM', 'Chassis', 'GPU', 'Disk'];
+            this.stepsOptions = [null, {
+                position: {
+                    y: 30
+                },
+                cameraPosition: {
+                    x: 80,
+                    y: 100,
+                    z: 10
+                }
+            }, {
+                position: {
+                    y: 40
+                }
+            }, {
+                position: {
+                    y: 15
+                },
+                cameraPosition: {
+                    x: 0,
+                    y: 40,
+                    z: 80
+                }
+            }, {
+                position: {
+                    y: 10
+                },
+                cameraPosition: {
+                    x: 160,
+                    y: 80,
+                    z: 80
+                }
+            }, {
+                position: {
+                    y: 50
+                },
+                cameraPosition: {
+                    x: -120,
+                    y: 150,
+                    z: 40
+                }
+            }, {
+                position: {
+                    y: 60,
+                    x: -20,
+                    z: 20
+                },
+                cameraPosition: {
+                    x: 50,
+                    y: 200,
+                    z: -100
+                }
+            }];
         };
         Boot.prototype = {
             constructor: Boot,
             initGL: function () {
+                this.raycaster = new THREE.Raycaster();
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: this.canvas,
                     antialias: true,
@@ -174,7 +238,7 @@
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x333333);
+                this.scene.background = new THREE.Color(0xD6D9DC);
 
                 this.camera = new THREE.PerspectiveCamera(this.cameraDefaults.fov, this.aspectRatio, this.cameraDefaults
                     .near, this.cameraDefaults.far);
@@ -182,13 +246,13 @@
                 this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
 
                 var ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
-                var directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
+                var directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directionalLight.position.set(-100, 100, -100);
                 directionalLight.castShadow = true;
-                var directional2Light = new THREE.DirectionalLight(0xFFFFFF, 1);
+                var directional2Light = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directional2Light.position.set(-100, 0, 100);
                 directional2Light.castShadow = true;
-                var directional3Light = new THREE.DirectionalLight(0xFFFFFF, 1);
+                var directional3Light = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directional3Light.position.set(100, -100, 0);
                 directional3Light.castShadow = true;
 
@@ -211,6 +275,40 @@
 
                 this.enqueueAllAssests(this.queueItems, this.workerCount, this.streamMeshes);
             },
+            onMouseDown: function (e) {
+                e.preventDefault();
+                this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                var scensObjs = [];
+                this.scene.children.forEach(child => {
+                    for (var i = 0; i < child.children.length; i++) {
+                        var obj = child.children[i];
+                        scensObjs.push(obj);
+                    }
+                });
+                var intersects = this.raycaster.intersectObjects(scensObjs);
+
+                var objs = [];
+                for (var i = 0; i < intersects.length; i++) {
+                    var intersect = intersects[i];
+                    if (intersect.object instanceof THREE.Mesh) {
+                        var obj = intersect.object.parent;
+                        obj.userData.distance = intersect.distance;
+                        objs.push(obj);
+                    }
+                }
+                objs = objs.sort(function (a, b) {
+                    return a.userData.distance - b.userData.distance;
+                });
+                if (objs[0]) {
+                    if (objs[0].name == this.steps[this.currentStep]) {
+                        this.trigger(objs[0]);
+                    }
+                }
+            },
+            onMouseMove: function(e) {},
             enqueueAllAssests: function (items, maxWebWorkers, streamMeshes) {
                 if (this.running) {
                     return;
@@ -243,7 +341,7 @@
                     if (scope.workerDirector.objectsCompleted + 1 === maxQueueSize) {
                         scope.running = false;
                         console.log('所有对象加载完成！');
-                        console.log(scope.scene.children);
+                        scope.initialize();
                     }
                 };
 
@@ -337,6 +435,7 @@
                     pivot.rotation.set(rotation[0], rotation[1], rotation[2]);
                     pivot.castShadow = true;
                     pivot.receiveShadow = true;
+                    pivot.visible = false;
                     this.scene.add(pivot);
                     modelPrepData.streamMeshesTo = pivot;
 
@@ -373,10 +472,99 @@
                 this.camera.lookAt(this.cameraTarget);
                 this.camera.updateProjectionMatrix();
             },
+            initialize: function () {
+                var scope = this;
+
+                var CPU = scope.scene.getObjectByName('CPU');
+                // CPU.visible = true;
+                CPU.position.y = 30 * this.mul;
+
+                var CPU_Cooler = scope.scene.getObjectByName('CPU-Cooler');
+                // CPU_Cooler.visible = true;
+                CPU_Cooler.position.y = 50 * this.mul;
+
+                var RAM = scope.scene.getObjectByName('RAM');
+                // RAM.visible = true;
+                RAM.position.y = 30 * this.mul;
+
+                var CD_ROM = scope.scene.getObjectByName('CD-ROM');
+                // CD_ROM.visible = true;
+                CD_ROM.position.y = 40 * this.mul;
+                CD_ROM.position.x = 100 * this.mul;
+
+                var Disk = scope.scene.getObjectByName('Disk');
+                // Disk.visible = true;
+                Disk.position.y = 30 * this.mul;
+                Disk.position.x = -70 * this.mul;
+
+                var Power = scope.scene.getObjectByName('Power');
+                // Power.visible = true;
+                Power.position.y = 250 * this.mul;
+                Power.position.z = 160 * this.mul;
+
+                var Board = scope.scene.getObjectByName('Board');
+                // Board.visible = true;
+                Board.position.z = -80 * this.mul;
+
+                var GPU = scope.scene.getObjectByName('GPU');
+                // GPU.visible = true;
+                GPU.position.y = 60 * this.mul;
+
+                var Motherboard = scope.scene.getObjectByName('Motherboard');
+                Motherboard.visible = true;
+
+                var Chassis = scope.scene.getObjectByName('Chassis');
+                // Chassis.visible = true;
+                Chassis.position.y = -20 * this.mul;
+
+                this.canvas.addEventListener('mousedown', this.onMouseDown.bind(scope), false);
+                this.canvas.addEventListener('mousemove', this.onMouseMove.bind(scope), false);
+
+                this.stepSwitch();
+            },
             render: function () {
                 if (!this.renderer.autoClear) this.renderer.clear();
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
+            },
+            stepSwitch: function(step) {
+                var step = step || this.currentStep || 1;
+                var stepObj = this.scene.getObjectByName(this.steps[step]);
+                stepObj.visible = true;
+                this.stepsOptions[step] = this.stepsOptions[step] || null;
+                if (this.stepsOptions[step]) {
+                    var _camera = this.stepsOptions[step].cameraPosition || null;
+                    var _obj = this.stepsOptions[step].position || null;
+                    if (_camera) {
+                        if (_obj) {
+                            _camera.onComplete = function() {
+                                customAnimation.to(stepObj.position, 1, _obj);
+                            };
+                        }
+                        customAnimation.to(this.camera.position, 0.5, _camera);
+                    } else {
+                        if (_obj) {
+                            customAnimation.to(stepObj.position, 1, _obj);
+                        }
+                    }
+                }
+            },
+            trigger: function (obj) {
+                console.log('选择：' + obj.name);
+                var stepObjPosition = null;
+                for(var i = 0; i < this.queueItems.length; i ++) {
+                    if (this.queueItems[i].name == obj.name) {
+                        stepObjPosition = this.queueItems[i].position;
+                        break;
+                    }
+                }
+                customAnimation.to(obj.position, 0.3, {
+                    x: stepObjPosition[0],
+                    y: stepObjPosition[1],
+                    z: stepObjPosition[2]
+                });
+                this.currentStep += 1;
+                this.stepSwitch();
             }
         };
         var app = new Boot(document.getElementById('canvas'));
