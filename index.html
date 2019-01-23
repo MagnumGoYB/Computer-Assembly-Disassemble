@@ -5,50 +5,30 @@
     <title></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <style>
-        body {
-            font-family: Monospace;
-            background-color: #fff;
-            margin: 0px;
-            overflow: hidden;
-        }
-
-        #full-screen {
-            width: 100%;
-            height: 100vh;
-            min-width: 640px;
-            min-height: 360px;
-            position: relative;
-            overflow: hidden;
-            z-index: 0;
-        }
-
-        #canvas {
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            background-color: #ffffff;
-        }
-
-        #feedback {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            z-index: 100;
-            display: block;
-            color: darkorange;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noto+Sans+SC:100,300,400,500,700&amp;subset=chinese-simplified">
+    <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:900' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Playfair+Display:400italic' rel='stylesheet' type='text/css'>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel='stylesheet' type='text/css'>
 </head>
 
 <body>
-
+    <div id="loading">
+        <h1 class="ml13">Loading</h1>
+    </div>
     <div id="full-screen">
         <canvas id="canvas"></canvas>
     </div>
     <div id="feedback"></div>
+    <div id="reset">
+        <div class="reset-box">
+            <button type="button" id="reset-btn" class="reset-btn"><i class="fa fa-rotate-left"></i></button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/2.0.2/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="js/loading.js"></script>
 
     <script src="js/three.min.js"></script>
     <script src="js/TrackballControls.js"></script>
@@ -194,12 +174,12 @@
                 },
                 cameraPosition: {
                     x: 0,
-                    y: 40,
-                    z: 80
+                    y: 80,
+                    z: 150
                 }
             }, {
                 position: {
-                    y: 10
+                    y: 30
                 },
                 cameraPosition: {
                     x: 110,
@@ -289,13 +269,13 @@
                 this.controls.panSpeed = 0.8;
 
                 var ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
-                var directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
+                var directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directionalLight.position.set(-300, 300, -300);
                 directionalLight.castShadow = true;
-                var directional2Light = new THREE.DirectionalLight(0xFFFFFF, 0.5);
+                var directional2Light = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directional2Light.position.set(-300, 0, 300);
                 directional2Light.castShadow = true;
-                var directional3Light = new THREE.DirectionalLight(0xFFFFFF, 0.5);
+                var directional3Light = new THREE.DirectionalLight(0xFFFFFF, 0.3);
                 directional3Light.position.set(300, -300, 0);
                 directional3Light.castShadow = true;
 
@@ -345,6 +325,7 @@
                 objs = objs.sort(function (a, b) {
                     return a.userData.distance - b.userData.distance;
                 });
+                console.log(objs)
                 if (objs[0]) {
                     if (objs[0].name == this.steps[this.currentStep]) {
                         this.trigger(objs[0]);
@@ -520,79 +501,71 @@
 
                 var CPU = scope.scene.getObjectByName('CPU');
                 CPU.position.y = 30 * this.mul;
-                // CPU.visible = true;
+                CPU.visible = false;
                 scope.chassisItems.push(CPU);
-                // scope.chassisGroup.add(CPU);
 
                 var CPU_Cooler = scope.scene.getObjectByName('CPU-Cooler');
                 CPU_Cooler.position.y = 50 * this.mul;
-                // CPU_Cooler.visible = true;
+                CPU_Cooler.visible = false;
                 scope.chassisItems.push(CPU_Cooler);
-                // scope.chassisGroup.add(CPU_Cooler);
 
                 var RAM = scope.scene.getObjectByName('RAM');
                 RAM.position.y = 30 * this.mul;
-                // RAM.visible = true;
+                RAM.visible = false;
                 scope.chassisItems.push(RAM);
-                // scope.chassisGroup.add(RAM);
 
                 var CD_ROM = scope.scene.getObjectByName('CD-ROM');
                 CD_ROM.position.y = 40 * this.mul;
                 CD_ROM.position.x = 100 * this.mul;
-                // CD_ROM.visible = true;
+                CD_ROM.visible = false;
                 scope.chassisItems.push(CD_ROM);
-                // scope.chassisGroup.add(CD_ROM);
 
                 var Disk = scope.scene.getObjectByName('Disk');
                 Disk.position.y = 30 * this.mul;
                 Disk.position.x = -70 * this.mul;
-                // Disk.visible = true;
+                Disk.visible = false;
                 scope.chassisItems.push(Disk);
-                // scope.chassisGroup.add(Disk);
 
                 var Power = scope.scene.getObjectByName('Power');
                 Power.position.y = 250 * this.mul;
                 Power.position.z = 160 * this.mul;
-                // Power.visible = true;
+                Power.visible = false;
                 scope.chassisItems.push(Power);
-                // scope.chassisGroup.add(Power);
 
                 var Board = scope.scene.getObjectByName('Board');
                 Board.position.z = -80 * this.mul;
-                // Board.visible = true;
+                Board.visible = false;
                 scope.chassisItems.push(Board);
-                // scope.chassisGroup.add(Board);
 
                 var GPU = scope.scene.getObjectByName('GPU');
                 GPU.position.y = 60 * this.mul;
-                // GPU.visible = true;
+                GPU.visible = false;
                 scope.chassisItems.push(GPU);
-                // scope.chassisGroup.add(GPU);
 
                 var Motherboard = scope.scene.getObjectByName('Motherboard');
                 Motherboard.visible = true;
                 scope.chassisItems.push(Motherboard);
-                // scope.chassisGroup.add(Motherboard);
 
                 var Chassis = scope.scene.getObjectByName('Chassis');
                 Chassis.position.y = -40 * this.mul;
-                // Chassis.visible = true;
+                Chassis.visible = false;
                 scope.chassisItems.push(Chassis);
-                // scope.chassisGroup.add(Chassis);
 
                 var Monitor = scope.scene.getObjectByName('Monitor');
                 Monitor.position.y = 100 * this.mul;
-                // Monitor.visible = true;
+                Monitor.visible = false;
 
                 var Mouse = scope.scene.getObjectByName('Mouse');
                 Mouse.position.y = 100 * this.mul;
-                // Mouse.visible = true;
+                Mouse.visible = false;
 
                 this.canvas.addEventListener('mousedown', this.onMouseDown.bind(scope), false);
                 this.canvas.addEventListener('mousemove', this.onMouseMove.bind(scope), false);
 
                 this.stepSwitch();
                 this._reportProgress('');
+
+                document.getElementById('loading').style.display = 'none';
             },
             render: function () {
                 if (!this.renderer.autoClear) this.renderer.clear();
@@ -662,6 +635,9 @@
                             x: 0,
                             y: 110,
                             onComplete: function() {
+                                setTimeout(function() {
+                                    document.getElementById('reset').style.display = 'table';
+                                }, 1000)
                             }
                         });
                     }
@@ -681,6 +657,22 @@
         app.initGL();
         app.resizeDisplayGL();
         render();
+
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            app.currentStep = 1;
+            app.scene.rotation.z = 0;
+            app.camera.position.x = 150;
+            app.camera.position.y = 120;
+            app.camera.position.z = 200;
+            app.chassisItems = [];
+            // for(var i in app.chassisGroup.children) {
+            //     if (app.chassisGroup.children[i].name != 'ChassisGroup') {
+            //         app.chassisGroup.remove(app.chassisGroup.children[i]);
+            //     }
+            // }
+            console.log(app.chassisGroup)
+            app.initialize();
+        }, false)
     </script>
 </body>
 

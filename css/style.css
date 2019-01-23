@@ -1,0 +1,91 @@
+body {
+    font-family: "Noto Sans SC", "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background-color: #fff;
+    margin: 0px;
+    overflow: hidden;
+    font-weight: 300;
+}
+
+#loading {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #000;
+    color: #fff;
+    z-index: 999;
+    display: table;
+}
+
+#full-screen {
+    width: 100%;
+    height: 100vh;
+    min-width: 640px;
+    min-height: 360px;
+    position: relative;
+    overflow: hidden;
+    z-index: 0;
+}
+
+#canvas {
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-color: #ffffff;
+}
+
+#feedback {
+    position: absolute;
+    top: 10px;
+    width: 100%;
+    text-align: center;
+    z-index: 100;
+    display: block;
+    color: darkorange;
+}
+
+#reset {
+    position: fixed;
+    width: 100px;
+    height: 100px;
+    top: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    display: none;
+}
+
+.reset-box {
+    width: 100%;
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.reset-btn {
+    background-color: transparent;
+    color: #fff;
+    border: none;
+    font-size: 4em;
+    font-weight: 100;
+    cursor: pointer;
+}
+
+.ml13 {
+    font-size: 4em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: center;
+    font-weight: 100;
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.ml13 .letter {
+    display: inline-block;
+    line-height: 1em;
+}
