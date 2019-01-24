@@ -325,7 +325,6 @@
                 objs = objs.sort(function (a, b) {
                     return a.userData.distance - b.userData.distance;
                 });
-                console.log(objs)
                 if (objs[0]) {
                     if (objs[0].name == this.steps[this.currentStep]) {
                         this.trigger(objs[0]);
@@ -659,19 +658,7 @@
         render();
 
         document.getElementById('reset-btn').addEventListener('click', function() {
-            app.currentStep = 1;
-            app.scene.rotation.z = 0;
-            app.camera.position.x = 150;
-            app.camera.position.y = 120;
-            app.camera.position.z = 200;
-            app.chassisItems = [];
-            // for(var i in app.chassisGroup.children) {
-            //     if (app.chassisGroup.children[i].name != 'ChassisGroup') {
-            //         app.chassisGroup.remove(app.chassisGroup.children[i]);
-            //     }
-            // }
-            console.log(app.chassisGroup)
-            app.initialize();
+            window.location.reload();
         }, false)
     </script>
 </body>
